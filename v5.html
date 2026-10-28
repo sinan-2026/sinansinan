@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دليل إسطنبول V5 - اوتوماتيك</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0f1f3a;color:#fff;height:100vh;display:flex;flex-direction:column}
+.header{background:#162a4d;padding:12px 15px}
+.header h1{font-size:20px;text-align:center;margin-bottom:10px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.tab{padding:8px 14px;border-radius:20px;border:none;font-size:13px;cursor:pointer;font-weight:600}
+.tab.active{background:#ff8c00;color:#fff}
+.tab:not(.active){background:#1e3a5f;color:#8aa0c0}
+.tab2row{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.tab2{padding:6px 12px;border-radius:18px;border:none;font-size:12px;cursor:pointer;background:#1a325a;color:#a0b8d8}
+.tab2.active{background:#00b4a0;color:#fff}
+.searchBox{display:flex;gap:6px;margin-top:10px}
+.searchBox input{flex:1;padding:10px 15px;border-radius:20px;border:none;background:#fff;color:#333;font-size:14px;outline:none}
+.searchBtn{padding:10px 18px;border-radius:20px;border:none;background:#00a896;color:#fff;font-weight:700;cursor:pointer}
+#map{flex:1;width:100%;z-index:1}
+.bottomPanel{background:#fff;color:#222;border-radius:20px 20px 0 0;margin-top:-20px;z-index:10;padding:15px;max-height:42%;overflow-y:auto}
+.placeTitle{font-size:18px;font-weight:800;margin-bottom:4px}
+.placeAddr{font-size:12px;color:#666;margin-bottom:12px}
+.actionRow{display:flex;gap:8px;margin-bottom:10px}
+.actBtn{flex:1;padding:10px;border-radius:12px;border:2px solid #e0e0e0;background:#f8f9fa;font-size:13px;font-weight:700;cursor:pointer}
+.actBtn.active{background:#e6f7f5;border-color:#00b4a0;color:#00a896}
+.mainBtn{width:100%;padding:12px;background:#00b4a0;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:8px}
+.secBtn{flex:1;padding:10px;background:#f0f2f5;border:none;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer}
+.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:1000;display:none}
+.locPrompt{background:#ff8c00;color:#fff;padding:8px;text-align:center;font-size:12px;cursor:pointer;display:none}
+</style>
+</head>
+<body>
+<div class="locPrompt" id="locPrompt" onclick="requestLocation()">📍 دوس هنا للسماح للموقع - حتى نلكه مكانك مثل كوكل ماب</div>
+<div class="header">
+<h1>دليل إسطنبول V5 🗺️</h1>
+<div class="tabs">
+<button class="tab active" onclick="setFilter('all')">🗺️ خاملة</button>
+<button class="tab" onclick="setFilter('transport')">🚇 كل المواصلات</button>
+<button class="tab" id="homeTab" onclick="goHome()">🏠 بيتي</button>
+</div>
+<div class="tab2row">
+<button class="tab2" onclick="setCat('cafe')">☕ مقاهي</button>
+<button class="tab2" onclick="setCat('mall')">🛍️ مولات</button>
+<button class="tab2" onclick="setCat('station')">🚇 محطات</button>
+<button class="tab2 active" onclick="setCat('entertainment')">🛝 ترفيه</button>
+<button class="tab2" onclick="setCat('near')">📍 القريب</button>
+</div>
+<div class="searchBox">
+<input type="text" id="searchInput" placeholder="دور على مكان...">
+<button class="searchBtn" onclick="searchPlaces()">بحث</button>
+</div>
+</div>
+<div id="map"></div>
+<div class="bottomPanel">
+<div class="placeTitle" id="pTitle">اختر مكان من الخريطة</div>
+<div class="placeAddr" id="pAddr">فعل الموقع حتى نلكه الاماكن القريبة عليك اوتوماتيك</div>
+<div class="actionRow">
+<button class="actBtn active" id="walkBtn" onclick="setMode('walk')">🚶 مشي</button>
+<button class="actBtn" id="taxiBtn" onclick="setMode('taxi')">🚕 تكسي</button>
+<button class="actBtn" id="transBtn" onclick="setMode('transport')">🚇 مواصلات</button>
+</div>
+<button class="mainBtn" onclick="startNavigation()">🔔 ابدأ الملاحة</button>
+<div style="display:flex;gap:8px">
+<button class="secBtn" onclick="shareLocation()">🔗 مشاركة موقعي</button>
+<button class="secBtn" style="background:#fff3e0" onclick="setHomeAuto()">⚙️ ثبت بيتي اوتوماتيك</button>
+</div>
+<div style="margin-top:10px;font-size:11px;color:#888;text-align:center" id="homeStatus">بيتي: لم يثبت بعد</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const places=[{n:"مول مرمرة فورم",a:"Marmara Forum",lat:40.978,lon:28.891,c:"mall"},{n:"مول جواهر",a:"Cevahir",lat:41.062,lon:28.987,c:"mall"},{n:"مول استينيا بارك",a:"IstinyePark",lat:41.116,lon:29.029,c:"mall"},{n:"مسجد السلطان احمد",a:"الجامع الازرق",lat:41.005,lon:28.977,c:"entertainment"},{n:"ايا صوفيا",a:"Hagia Sophia",lat:41.008,lon:28.979,c:"entertainment"},{n:"برج غالاتا",a:"Galata Tower",lat:41.025,lon:28.974,c:"entertainment"},{n:"ميدان تقسيم",a:"Taksim",lat:41.037,lon:28.985,c:"entertainment"},{n:"محطة يني كابي",a:"Yenikapi",lat:40.998,lon:28.952,c:"station"},{n:"محطة امينونو",a:"Eminonu",lat:41.016,lon:28.973,c:"station"},{n:"مقهى فيروز",a:"مقهى عربي",lat:41.009,lon:28.971,c:"cafe"}];
+let map=L.map('map',{zoomControl:false}).setView([41.0082,28.9784],12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+let markers=[],currentPos=null,homePos=JSON.parse(localStorage.getItem('istanbul_home')||'null'),selectedPlace=null,mode='walk',currentCat='entertainment';
+function showToast(t){let e=document.getElementById('toast');e.innerText=t;e.style.display='block';setTimeout(()=>e.style.display='none',3000)}
+if(homePos){document.getElementById('homeStatus').innerText=`بيتي: ${homePos.addr||homePos.lat.toFixed(4)}`}
+function renderMarkers(f='all',cat='entertainment'){markers.forEach(m=>map.removeLayer(m));markers=[];let list=places;if(cat==='near'&&currentPos){list=[...places].sort((a,b)=>{let d1=Math.hypot(currentPos.lat-a.lat,currentPos.lon-a.lon),d2=Math.hypot(currentPos.lat-b.lat,currentPos.lon-b.lon);return d1-d2}).slice(0,10)}else if(cat!=='all')list=places.filter(p=>p.c===cat);if(f==='transport')list=places.filter(p=>p.c==='station');list.forEach(p=>{let m=L.marker([p.lat,p.lon]).addTo(map).on('click',()=>selectPlace(p));m.bindPopup(p.n);markers.push(m)})}
+function selectPlace(p){selectedPlace=p;document.getElementById('pTitle').innerText=p.n;document.getElementById('pAddr').innerText=p.a;map.setView([p.lat,p.lon],15)}
+function setFilter(f){renderMarkers(f,currentCat)}
+function setCat(c){currentCat=c;renderMarkers('all',c)}
+function setMode(m){mode=m;document.querySelectorAll('.actBtn').forEach(b=>b.classList.remove('active'));document.getElementById(m==='walk'?'walkBtn':m==='taxi'?'taxiBtn':'transBtn').classList.add('active')}
+function searchPlaces(){let q=document.getElementById('searchInput').value.toLowerCase();let f=places.filter(p=>p.n.toLowerCase().includes(q));if(f.length)selectPlace(f[0]);else showToast('ما لكينا')}
+function requestLocation(){if(!navigator.geolocation)return;document.getElementById('locPrompt').style.display='none';showToast('جاري تحديد موقعك...');navigator.geolocation.getCurrentPosition(pos=>{currentPos={lat:pos.coords.latitude,lon:pos.coords.longitude};L.marker([currentPos.lat,currentPos.lon]).addTo(map).bindPopup('انت هنا').openPopup();map.setView([currentPos.lat,currentPos.lon],14);fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${currentPos.lat}&lon=${currentPos.lon}&accept-language=ar`).then(r=>r.json()).then(d=>{document.getElementById('pAddr').innerText=d.display_name;showToast('لكينا موقعك!')});renderMarkers()},err=>{document.getElementById('locPrompt').style.display='block'},{enableHighAccuracy:true})}
+function setHomeAuto(){if(!currentPos){requestLocation();setTimeout(()=>{if(currentPos)saveHome(currentPos.lat,currentPos.lon)},2000);return}saveHome(currentPos.lat,currentPos.lon)}
+function saveHome(lat,lon){fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ar`).then(r=>r.json()).then(d=>{let addr=d.display_name;homePos={lat,lon,addr};localStorage.setItem('istanbul_home',JSON.stringify(homePos));document.getElementById('homeStatus').innerText=`بيتي: ${addr}`;showToast('تم تثبيت بيتك اوتوماتيك')})}
+function goHome(){if(!homePos){showToast('بعدك ما مثبت بيتك');return}map.setView([homePos.lat,homePos.lon],16)}
+function shareLocation(){if(!currentPos){requestLocation();return}let url=`https://www.google.com/maps?q=${currentPos.lat},${currentPos.lon}`;navigator.clipboard.writeText(url);showToast('تم نسخ رابط موقعك')}
+function startNavigation(){if(!selectedPlace){showToast('اختار مكان اول');return}if(!currentPos){requestLocation();return}let url=`https://www.google.com/maps/dir/${currentPos.lat},${currentPos.lon}/${selectedPlace.lat},${selectedPlace.lon}`;window.open(url,'_blank')}
+window.onload=()=>{renderMarkers();setTimeout(()=>{document.getElementById('locPrompt').style.display='block';requestLocation()},1000)}
+</script>
+</body>
+</html>
